@@ -1,50 +1,43 @@
 use std::fs::File;
 use std::path::PathBuf;
-use std::io;
 use std::process::exit;
 use structopt::StructOpt;
 
+
+// CLI Parsing
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 struct Cli {
-    img_file: PathBuf,
     #[structopt(parse(from_os_str))]
-    other_img_files: Vec<PathBuf>
+    program_file: PathBuf,
 }
+
+// LC-3 VM
+pub struct LC3 {
+    program_file: File
+}
+
+impl LC3 {
+    pub fn new(program_file: PathBuf) -> LC3 {
+        // Open VM image file
+        let program_file = match File::open(&program_file) {
+            Ok(file) => file,
+            Err(error) => {
+                eprintln!("error: couldn't open {:?}, {}", program_file, error);
+                exit(-1)
+            }
+        };
+
+        LC3 {
+            program_file: program_file
+        }
+    }
+}
+
 
 fn main() {
     let args = Cli::from_args();
+    let lc3 = LC3::new(args.program_file);
 
-    let img_files = match open_img_files(&args.img_file, args.other_img_files) {
-        Ok(files) => files,
-        Err(_) => exit(-1),
-    };
-
-    println!("{:?}", img_files);
-}
-
-// Open VM image files
-fn open_img_files(img_file: &PathBuf, other_img_files: Vec<PathBuf>) -> Result<Vec<File>, io::Error> {
-
-    let mut img_files: Vec<File> = Vec::with_capacity(1 + other_img_files.len());
-
-    match File::open(&img_file) {
-        Err(error) => {
-                eprintln!("error: couldn't open {:?}, {}", img_file, error);
-                return Err(error)
-            },
-        Ok(file) => img_files.push(file)
-    }
-
-    for img_file_path in other_img_files.iter() {
-        match File::open(&img_file_path) {
-            Err(error) => {
-                eprintln!("error: couldn't open {:?}, {}", img_file_path, error);
-                return Err(error)
-            },
-            Ok(file) => img_files.push(file)
-        }
-    }
-
-    return Ok(img_files)
+    println!("{:?}", lc3.program_file);
 }
