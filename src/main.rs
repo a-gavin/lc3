@@ -37,6 +37,7 @@ enum Instr {
 
 /* ~~~ Imports ~~~ */
 use std::fs::File;
+use std::io;
 use std::io::Read;
 use std::path::PathBuf;
 use std::process::exit;
@@ -87,8 +88,14 @@ impl Default for LC3 {
 }
 
 impl LC3 {
-    pub fn new(program_file: PathBuf) -> LC3 {
-        let (start_addr, memory) = read_program_file(program_file);
+    pub fn new(program_file: &PathBuf) -> LC3 {
+        let (start_addr, memory) = match read_program_file(program_file) {
+            Ok(n) => n,
+            Err(error) => {
+                eprintln!("error: couldn't read {:?}, {}", program_file, error);
+                exit(-1);
+            }
+        };
 
         LC3 {
                 pc: start_addr,
@@ -136,48 +143,45 @@ impl LC3 {
 /* ~~~ The fun stuff ~~~ */
 fn main() {
     let args = Cli::from_args();
-    let lc3 = LC3::new(args.program_file);
+    let lc3 = LC3::new(&args.program_file);
     lc3.run();
 }
 
-fn read_program_file(program_file: PathBuf) -> (usize, [u8; UINT16_MAX]) {
+fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX]), io::Error> {
     // Open VM image file
-    let mut program_file = match File::open(&program_file) {
-        Ok(file) => file,
-        Err(error) => {
-            eprintln!("error: couldn't open {:?}, {}", program_file, error);
-            exit(-1)
-        }
-    };
+    let mut program_file = File::open(&program_file)?;
+    let file_handle = program_file.by_ref();
 
-    // Read program start location
-    let mut program_start_addr_buf: [u8; 2] = [0, 0];
-    match program_file.read_exact(&mut program_start_addr_buf) {
-        Ok(n) => n,
-        Err(error) => {
-            eprintln!("error: couldn't read {:?}, {}", program_file, error);
-            exit(-1)
-        }
-    };
-    // Convert to little endian
-    let read_start_addr = ((program_start_addr_buf[0] as u16) << 8) | program_start_addr_buf[1] as u16;
+    //// Read program start location
+    let mut two_byte_chunk = Vec::with_capacity(2);
+    file_handle.take(2).read_to_end(&mut two_byte_chunk)?;
 
-    // If zero, use default 0x3000
+    // Convert to little endian; if zero, use default
+    let read_start_addr = ((two_byte_chunk[0] as u16) << 8) | two_byte_chunk[1] as u16;
+
     let mut start_addr = PRGM_START_ADDR;
     if read_start_addr != 0 {
         start_addr = read_start_addr as usize;
     }
 
-    // Read program into memory, starting at program start location
+    // Read program into memory, starting at program start location, swapping to little endian
     let mut memory: [u8; UINT16_MAX] = [0; UINT16_MAX];
-    let n = match program_file.read(&mut memory[start_addr..]) {
-        Ok(n) => n,
-        Err(error) => {
-            eprintln!("error: couldn't read {:?}, {}", program_file, error);
-            exit(-1)
-        }
-    };
-    assert!(n < (UINT16_MAX - PRGM_START_ADDR), "Cannot run program of size larger than {}", UINT16_MAX - PRGM_START_ADDR);
+    let mut ix = start_addr;
+    two_byte_chunk.clear();
 
-    (start_addr, memory)
+    loop {
+        let n = program_file.by_ref()
+                            .take(2 as u64)
+                            .read_to_end(&mut two_byte_chunk)?;
+        if n == 0 { break; }
+
+        // Swap and copy into memory
+        memory[ix] = two_byte_chunk[1];
+        memory[ix+1] = two_byte_chunk[0];
+        two_byte_chunk.clear();
+
+        ix += 2;
+    }
+
+    Ok((start_addr, memory))
 }
