@@ -45,10 +45,6 @@ use std::process::exit;
 use structopt::StructOpt;
 use enum_map::{enum_map, Enum, EnumMap};
 
-use Flag::*;
-use GpRegister::*;
-use Instr::*;
-
 
 /* ~~~ Structs ~~~ */
 // CLI Parsing
@@ -72,17 +68,17 @@ impl Default for LC3 {
         LC3 {
             memory: None,
             gp_regs: enum_map! {
-                R0 => 0,
-                R1 => 0,
-                R2 => 0,
-                R3 => 0,
-                R4 => 0,
-                R5 => 0,
-                R6 => 0,
-                R7 => 0,
+                GpRegister::R0 => 0,
+                GpRegister::R1 => 0,
+                GpRegister::R2 => 0,
+                GpRegister::R3 => 0,
+                GpRegister::R4 => 0,
+                GpRegister::R5 => 0,
+                GpRegister::R6 => 0,
+                GpRegister::R7 => 0,
             },
             pc: PRGM_START_ADDR,
-            cond: ZRO
+            cond: Flag::ZRO
         }
     }
 }
@@ -111,7 +107,7 @@ impl LC3 {
         println!("COND: {:?}", self.cond);
 
         // Get op
-        let op: Instr = ADD;
+        let op: Instr = Instr::ADD;
         println!("{:04x}", self.memory.unwrap()[PRGM_START_ADDR]);
 
         loop {
