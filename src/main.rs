@@ -15,7 +15,7 @@ enum Flag {
 }
 
 #[derive(Debug)]
-enum Instruction {
+enum Instr {
     BR,     // Branch
     ADD,    // Add
     LD,     // Load
@@ -46,6 +46,7 @@ use enum_map::{enum_map, Enum, EnumMap};
 
 use Flag::*;
 use GpRegister::*;
+use Instr::*;
 
 
 /* ~~~ Structs ~~~ */
@@ -110,6 +111,39 @@ impl LC3 {
 
         LC3 { memory: Some(memory), ..Default::default() }
     }
+
+    pub fn run(self) {
+        println!("memory: {:?}", self.memory.unwrap());
+        println!("gp_regs: {:?}", self.gp_regs);
+        println!("PC: {:#04x}", self.pc);
+        println!("COND: {:?}", self.cond);
+
+        // Get op
+        let op: Instr = ADD;
+
+        loop {
+            match op {
+                Instr::ADD  => println!(),
+                Instr::AND  => println!(),
+                Instr::NOT  => println!(),
+                Instr::BR   => println!(),
+                Instr::JMP  => println!(),
+                Instr::JSR  => println!(),
+                Instr::LD   => println!(),
+                Instr::LDI  => println!(),
+                Instr::LDR  => println!(),
+                Instr::LEA  => println!(),
+                Instr::ST   => println!(),
+                Instr::STI  => println!(),
+                Instr::STR  => println!(),
+                Instr::TRAP => println!(),
+                Instr::RES  => println!(),
+                Instr::RTI  => println!(),
+            }
+
+            break;
+        }
+    }
 }
 
 
@@ -117,9 +151,5 @@ impl LC3 {
 fn main() {
     let args = Cli::from_args();
     let lc3 = LC3::new(args.program_file);
-
-    println!("memory: {:?}", lc3.memory.unwrap());
-    println!("gp_regs: {:?}", lc3.gp_regs);
-    println!("PC: {:#04x}", lc3.pc);
-    println!("COND: {:?}", lc3.cond);
+    lc3.run();
 }
