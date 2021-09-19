@@ -88,38 +88,24 @@ impl Default for LC3 {
 
 impl LC3 {
     pub fn new(program_file: PathBuf) -> LC3 {
-        // Open VM image file
-        let mut program_file = match File::open(&program_file) {
-            Ok(file) => file,
-            Err(error) => {
-                eprintln!("error: couldn't open {:?}, {}", program_file, error);
-                exit(-1)
+        let (start_addr, memory) = read_program_file(program_file);
+
+        LC3 {
+                pc: start_addr,
+                memory: Some(memory),
+                ..Default::default()
             }
-        };
-
-        // Read program into memory
-        let mut memory: [u8; UINT16_MAX] = [0; UINT16_MAX];
-        let n = match program_file.read(&mut memory[PRGM_START_ADDR..]) {
-            Ok(n) => n,
-            Err(error) => {
-                eprintln!("error: couldn't read {:?}, {}", program_file, error);
-                exit(-1)
-            }
-        };
-        assert!(n < (UINT16_MAX - PRGM_START_ADDR), "Cannot run program of size larger than {}", UINT16_MAX - PRGM_START_ADDR);
-
-
-        LC3 { memory: Some(memory), ..Default::default() }
     }
 
     pub fn run(self) {
-        println!("memory: {:?}", self.memory.unwrap());
+        println!("memory: {:?}", &self.memory.unwrap()[(self.pc-10)..(self.pc+100)]);
         println!("gp_regs: {:?}", self.gp_regs);
         println!("PC: {:#04x}", self.pc);
         println!("COND: {:?}", self.cond);
 
         // Get op
         let op: Instr = ADD;
+        println!("{:04x}", self.memory.unwrap()[PRGM_START_ADDR]);
 
         loop {
             match op {
@@ -152,4 +138,46 @@ fn main() {
     let args = Cli::from_args();
     let lc3 = LC3::new(args.program_file);
     lc3.run();
+}
+
+fn read_program_file(program_file: PathBuf) -> (usize, [u8; UINT16_MAX]) {
+    // Open VM image file
+    let mut program_file = match File::open(&program_file) {
+        Ok(file) => file,
+        Err(error) => {
+            eprintln!("error: couldn't open {:?}, {}", program_file, error);
+            exit(-1)
+        }
+    };
+
+    // Read program start location
+    let mut program_start_addr_buf: [u8; 2] = [0, 0];
+    match program_file.read_exact(&mut program_start_addr_buf) {
+        Ok(n) => n,
+        Err(error) => {
+            eprintln!("error: couldn't read {:?}, {}", program_file, error);
+            exit(-1)
+        }
+    };
+    // Convert to little endian
+    let read_start_addr = ((program_start_addr_buf[0] as u16) << 8) | program_start_addr_buf[1] as u16;
+
+    // If zero, use default 0x3000
+    let mut start_addr = PRGM_START_ADDR;
+    if read_start_addr != 0 {
+        start_addr = read_start_addr as usize;
+    }
+
+    // Read program into memory, starting at program start location
+    let mut memory: [u8; UINT16_MAX] = [0; UINT16_MAX];
+    let n = match program_file.read(&mut memory[start_addr..]) {
+        Ok(n) => n,
+        Err(error) => {
+            eprintln!("error: couldn't read {:?}, {}", program_file, error);
+            exit(-1)
+        }
+    };
+    assert!(n < (UINT16_MAX - PRGM_START_ADDR), "Cannot run program of size larger than {}", UINT16_MAX - PRGM_START_ADDR);
+
+    (start_addr, memory)
 }
