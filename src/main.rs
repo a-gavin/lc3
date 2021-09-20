@@ -15,11 +15,11 @@ enum Flag {
 }
 
 #[derive(Debug)]
-enum Instr {
+enum Opcode {
     BR,     // Branch
     ADD,    // Add
-    LD,     // Load
-    ST,     // Store
+    LDB,    // Load
+    STB,    // Store
     JSR,    // Jump register
     AND,    // Bitwise AND
     LDR,    // Load register
@@ -29,9 +29,10 @@ enum Instr {
     LDI,    // Load indirect
     STI,    // Store indirect
     JMP,    // Jump
-    RES,    // Reserved (unused)
+    SHF,    // Bit shift
     LEA,    // Load effective address
-    TRAP    // Execute trap
+    TRAP,   // Execute trap
+    ERR     // For invalid opcodes
 }
 
 
@@ -57,7 +58,7 @@ struct Cli {
 
 // LC-3 VM
 pub struct LC3 {
-    memory: Option<[u8; UINT16_MAX]>,
+    memory: [u8; UINT16_MAX],
     gp_regs: EnumMap<GpRegister, u16>,
     pc: usize,
     cond: Flag
@@ -66,7 +67,7 @@ pub struct LC3 {
 impl Default for LC3 {
     fn default() -> LC3 {
         LC3 {
-            memory: None,
+            memory: [0; UINT16_MAX],
             gp_regs: enum_map! {
                 GpRegister::R0 => 0,
                 GpRegister::R1 => 0,
@@ -95,42 +96,71 @@ impl LC3 {
 
         LC3 {
                 pc: start_addr,
-                memory: Some(memory),
+                memory: memory,
                 ..Default::default()
             }
     }
 
-    pub fn run(self) {
-        println!("memory: {:?}", &self.memory.unwrap()[(self.pc-10)..(self.pc+100)]);
-        println!("gp_regs: {:?}", self.gp_regs);
-        println!("PC: {:#04x}", self.pc);
-        println!("COND: {:?}", self.cond);
-
-        // Get op
-        let op: Instr = Instr::ADD;
-        println!("{:04x}", self.memory.unwrap()[PRGM_START_ADDR]);
+    pub fn run(mut self) {
+        println!("memory: {:?}", &self.memory[(self.pc-10)..(self.pc+100)]);
 
         loop {
-            match op {
-                Instr::ADD  => println!(),
-                Instr::AND  => println!(),
-                Instr::NOT  => println!(),
-                Instr::BR   => println!(),
-                Instr::JMP  => println!(),
-                Instr::JSR  => println!(),
-                Instr::LD   => println!(),
-                Instr::LDI  => println!(),
-                Instr::LDR  => println!(),
-                Instr::LEA  => println!(),
-                Instr::ST   => println!(),
-                Instr::STI  => println!(),
-                Instr::STR  => println!(),
-                Instr::TRAP => println!(),
-                Instr::RES  => println!(),
-                Instr::RTI  => println!(),
-            }
+            // Fetch instruction and advance PC
+            let instr = self.mem_read(self.pc);
+            let opcode = Self::get_unpack_opcode(instr);
 
-            break;
+            println!("PC: {:#04x}", self.pc);
+            println!("OPCODE: {:?}", opcode);
+            println!("COND: {:?}", self.cond);
+            println!("gp_regs: {:?}", self.gp_regs);
+
+            self.pc += 1;
+            match opcode {
+                Opcode::ADD  => println!(),
+                Opcode::AND  => println!(),
+                Opcode::BR   => println!(),
+                Opcode::JMP  => println!(),
+                Opcode::JSR  => println!(),
+                Opcode::LDB  => println!(),
+                Opcode::LDI  => println!(),
+                Opcode::LDR  => println!(),
+                Opcode::LEA  => println!(),
+                Opcode::NOT  => println!(),
+                Opcode::STB  => println!(),
+                Opcode::STI  => println!(),
+                Opcode::STR  => println!(),
+                Opcode::TRAP => println!(),
+                Opcode::SHF  => println!(),
+                _ => return, // All others, including Opcode::RTI
+            }
+        }
+    }
+
+    fn mem_read(&self, reg_val: usize) -> u16 {
+        ((self.memory[reg_val] as u16) << 8) | self.memory[reg_val+1] as u16
+    }
+
+    fn get_unpack_opcode(instr: u16) -> Opcode {
+        let opcode_int = (instr >> 12) as u8;
+
+        match opcode_int {
+            0b0000 => Opcode::BR,
+            0b0001 => Opcode::ADD,
+            0b0010 => Opcode::LDB,
+            0b0011 => Opcode::STB,
+            0b0100 => Opcode::JSR,
+            0b0101 => Opcode::AND,
+            0b0110 => Opcode::LDR,
+            0b0111 => Opcode::STR,
+            0b1000 => Opcode::RTI,
+            0b1001 => Opcode::NOT,
+            0b1010 => Opcode::LDI,
+            0b1011 => Opcode::STI,
+            0b1100 => Opcode::JMP,
+            0b1101 => Opcode::SHF,
+            0b1110 => Opcode::LEA,
+            0b1111 => Opcode::TRAP,
+            _      => Opcode::ERR
         }
     }
 }
