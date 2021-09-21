@@ -8,6 +8,8 @@ use std::process::exit;
 use enum_map::{enum_map, Enum, EnumMap};
 use structopt::StructOpt;
 
+use op_code::*;
+
 
 /* ~~~ Constants and enums ~~~ */
 const UINT16_MAX: usize = 65536;
@@ -114,21 +116,21 @@ impl LC3 {
 
             self.pc += 1;
             match opcode {
-                op_code::ADD  => println!(),
-                op_code::AND  => println!(),
-                op_code::BR   => println!(),
-                op_code::JMP  => println!(),
-                op_code::JSR  => println!(),
-                op_code::LDB  => println!(),
-                op_code::LDI  => println!(),
-                op_code::LDR  => println!(),
-                op_code::LEA  => println!(),
-                op_code::NOT  => println!(),
-                op_code::STB  => println!(),
-                op_code::STI  => println!(),
-                op_code::STR  => println!(),
-                op_code::TRAP => println!(),
-                op_code::SHF  => println!(),
+                ADD  => println!(),
+                AND  => println!(),
+                BR   => println!(),
+                JMP  => println!(),
+                JSR  => println!(),
+                LDB  => println!(),
+                LDI  => println!(),
+                LDR  => println!(),
+                LEA  => println!(),
+                NOT  => println!(),
+                STB  => println!(),
+                STI  => println!(),
+                STR  => println!(),
+                TRAP => println!(),
+                SHF  => println!(),
                 _ => return, // All others, including Opcode::RTI
             }
         }
