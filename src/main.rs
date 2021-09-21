@@ -102,7 +102,7 @@ impl LC3 {
 
             self.pc += 1;
             match opcode {
-                ADD  => println!(),
+                ADD  => self.add(instr),
                 AND  => println!(),
                 BR   => println!(),
                 JMP  => println!(),
@@ -120,6 +120,22 @@ impl LC3 {
                 _ => return, // All others, including Opcode::RTI
             }
         }
+    }
+
+    fn add(&mut self, instr: u16) {
+        let dest_reg: u16 = (instr >> 9) & 0x7;
+        let op1: u16 = (instr >> 5) & 0x7;
+
+        if get_immed_bit(instr) == 1 {
+            let imm5 = sign_extend(instr & 0x1F, 5);
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1 as usize] + imm5;
+        }
+        else {
+            let op2: u16 = instr & 0x7;
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1 as usize] + self.gp_regs[op2 as usize];
+        }
+
+        update_flags(dest_reg, &mut self.cond);
     }
 
     fn mem_read(&self, reg_val: usize) -> u16 {
