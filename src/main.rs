@@ -137,7 +137,7 @@ impl LC3 {
     }
 
     fn mem_read(&self, reg_val: usize) -> u16 {
-        ((self.memory[reg_val] as u16) << 8) | self.memory[reg_val+1] as u16
+        swap_bytes(self.memory[reg_val], self.memory[reg_val+1])
     }
 }
 
@@ -147,6 +147,15 @@ fn main() {
     let args = Cli::from_args();
     let lc3 = LC3::new(&args.program_file);
     lc3.run();
+}
+
+/* Utility functions */
+fn is_negative(value: u16) -> bool {
+    (value >> 15) == 1
+}
+
+fn get_immed_bit(instr: u16) -> u16 {
+    (instr >> 5) & 0x1
 }
 
 fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX]), io::Error> {
@@ -159,7 +168,7 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
     file_handle.take(2).read_to_end(&mut two_byte_chunk)?;
 
     // Convert to little endian; if zero, use default
-    let read_start_addr = ((two_byte_chunk[0] as u16) << 8) | two_byte_chunk[1] as u16;
+    let read_start_addr = swap_bytes(two_byte_chunk[0], two_byte_chunk[1]);
 
     let mut start_addr = PRGM_START_ADDR;
     if read_start_addr != 0 {
@@ -186,4 +195,27 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
     }
 
     Ok((start_addr, memory))
+}
+
+fn sign_extend(register: u16, num_bits: u8) -> u16 {
+    if ((register >> (num_bits - 1)) & 1) == 1{
+        return register | (0xFFFF << num_bits);
+    }
+    register
+}
+
+fn swap_bytes(op1: u8, op2: u8) -> u16 {
+    ((op1 as u16) << 8) | op2 as u16
+}
+
+fn update_flags(register_val: u16, cond: &mut Flag) {
+    if register_val == 0 {
+        *cond = Flag::ZRO;
+    }
+    else if is_negative(register_val) {
+        *cond = Flag::NEG;
+    }
+    else {
+        *cond = Flag::POS;
+    }
 }
