@@ -1,3 +1,14 @@
+/* ~~~ Imports ~~~ */
+use std::fs::File;
+use std::io;
+use std::io::Read;
+use std::path::PathBuf;
+use std::process::exit;
+
+use enum_map::{enum_map, Enum, EnumMap};
+use structopt::StructOpt;
+
+
 /* ~~~ Constants and enums ~~~ */
 const UINT16_MAX: usize = 65536;
 const PRGM_START_ADDR: usize = 0x3000;
@@ -14,37 +25,24 @@ enum Flag {
     NEG
 }
 
-#[derive(Debug)]
-enum Opcode {
-    BR,     // Branch
-    ADD,    // Add
-    LDB,    // Load
-    STB,    // Store
-    JSR,    // Jump register
-    AND,    // Bitwise AND
-    LDR,    // Load register
-    STR,    // Store register
-    RTI,    // Unused
-    NOT,    // Bitwise NOT
-    LDI,    // Load indirect
-    STI,    // Store indirect
-    JMP,    // Jump
-    SHF,    // Bit shift
-    LEA,    // Load effective address
-    TRAP,   // Execute trap
-    ERR     // For invalid opcodes
+pub mod op_code {
+    pub const BR: u8 = 0b000;       // Branch
+    pub const ADD: u8 = 0b0001;     // Add
+    pub const LDB: u8 = 0b0010;     // Load
+    pub const STB: u8 = 0b0011;     // Store
+    pub const JSR: u8 = 0b0100;     // Jump register
+    pub const AND: u8 = 0b0101;     // Bitwise AND
+    pub const LDR: u8 = 0b0110;     // Load register
+    pub const STR: u8 = 0b0111;     // Store register
+    pub const RTI: u8 = 0b1000;     // Unused
+    pub const NOT: u8 = 0b1001;     // Bitwise NOT
+    pub const LDI: u8 = 0b1010;     // Load indirect
+    pub const STI: u8 = 0b1011;     // Store indirect
+    pub const JMP: u8 = 0b1100;     // Jump
+    pub const SHF: u8 = 0b1101;     // Shift register
+    pub const LEA: u8 = 0b1110;     // Load effective address   
+    pub const TRAP: u8 = 0b1111;    // Execute trap
 }
-
-
-/* ~~~ Imports ~~~ */
-use std::fs::File;
-use std::io;
-use std::io::Read;
-use std::path::PathBuf;
-use std::process::exit;
-
-use structopt::StructOpt;
-use enum_map::{enum_map, Enum, EnumMap};
 
 
 /* ~~~ Structs ~~~ */
@@ -107,7 +105,7 @@ impl LC3 {
         loop {
             // Fetch instruction and advance PC
             let instr = self.mem_read(self.pc);
-            let opcode = Self::get_unpack_opcode(instr);
+            let opcode = (instr >> 12) as u8;
 
             println!("PC: {:#04x}", self.pc);
             println!("OPCODE: {:?}", opcode);
@@ -116,21 +114,21 @@ impl LC3 {
 
             self.pc += 1;
             match opcode {
-                Opcode::ADD  => println!(),
-                Opcode::AND  => println!(),
-                Opcode::BR   => println!(),
-                Opcode::JMP  => println!(),
-                Opcode::JSR  => println!(),
-                Opcode::LDB  => println!(),
-                Opcode::LDI  => println!(),
-                Opcode::LDR  => println!(),
-                Opcode::LEA  => println!(),
-                Opcode::NOT  => println!(),
-                Opcode::STB  => println!(),
-                Opcode::STI  => println!(),
-                Opcode::STR  => println!(),
-                Opcode::TRAP => println!(),
-                Opcode::SHF  => println!(),
+                op_code::ADD  => println!(),
+                op_code::AND  => println!(),
+                op_code::BR   => println!(),
+                op_code::JMP  => println!(),
+                op_code::JSR  => println!(),
+                op_code::LDB  => println!(),
+                op_code::LDI  => println!(),
+                op_code::LDR  => println!(),
+                op_code::LEA  => println!(),
+                op_code::NOT  => println!(),
+                op_code::STB  => println!(),
+                op_code::STI  => println!(),
+                op_code::STR  => println!(),
+                op_code::TRAP => println!(),
+                op_code::SHF  => println!(),
                 _ => return, // All others, including Opcode::RTI
             }
         }
@@ -138,30 +136,6 @@ impl LC3 {
 
     fn mem_read(&self, reg_val: usize) -> u16 {
         ((self.memory[reg_val] as u16) << 8) | self.memory[reg_val+1] as u16
-    }
-
-    fn get_unpack_opcode(instr: u16) -> Opcode {
-        let opcode_int = (instr >> 12) as u8;
-
-        match opcode_int {
-            0b0000 => Opcode::BR,
-            0b0001 => Opcode::ADD,
-            0b0010 => Opcode::LDB,
-            0b0011 => Opcode::STB,
-            0b0100 => Opcode::JSR,
-            0b0101 => Opcode::AND,
-            0b0110 => Opcode::LDR,
-            0b0111 => Opcode::STR,
-            0b1000 => Opcode::RTI,
-            0b1001 => Opcode::NOT,
-            0b1010 => Opcode::LDI,
-            0b1011 => Opcode::STI,
-            0b1100 => Opcode::JMP,
-            0b1101 => Opcode::SHF,
-            0b1110 => Opcode::LEA,
-            0b1111 => Opcode::TRAP,
-            _      => Opcode::ERR
-        }
     }
 }
 
