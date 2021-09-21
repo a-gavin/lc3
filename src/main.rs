@@ -5,22 +5,17 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::process::exit;
 
-use enum_map::{enum_map, Enum, EnumMap};
 use structopt::StructOpt;
 
 use op_code::*;
 
 
 /* ~~~ Constants and enums ~~~ */
+const NUM_GP_REGS: usize = 8;
 const UINT16_MAX: usize = 65536;
 const PRGM_START_ADDR: usize = 0x3000;
 
-#[derive(Debug, Enum)]
-enum GpRegister {
-    R0, R1, R2, R3, R4, R5, R6, R7
-}
-
-#[derive(Debug, Enum)]
+#[derive(Debug)]
 enum Flag {
     POS,
     ZRO,
@@ -59,7 +54,7 @@ struct Cli {
 // LC-3 VM
 pub struct LC3 {
     memory: [u8; UINT16_MAX],
-    gp_regs: EnumMap<GpRegister, u16>,
+    gp_regs: [u16; NUM_GP_REGS],
     pc: usize,
     cond: Flag
 }
@@ -68,16 +63,7 @@ impl Default for LC3 {
     fn default() -> LC3 {
         LC3 {
             memory: [0; UINT16_MAX],
-            gp_regs: enum_map! {
-                GpRegister::R0 => 0,
-                GpRegister::R1 => 0,
-                GpRegister::R2 => 0,
-                GpRegister::R3 => 0,
-                GpRegister::R4 => 0,
-                GpRegister::R5 => 0,
-                GpRegister::R6 => 0,
-                GpRegister::R7 => 0,
-            },
+            gp_regs: [0; NUM_GP_REGS],
             pc: PRGM_START_ADDR,
             cond: Flag::ZRO
         }
