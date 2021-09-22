@@ -15,11 +15,10 @@ const NUM_GP_REGS: usize = 8;
 const UINT16_MAX: usize = 65536;
 const PRGM_START_ADDR: usize = 0x3000;
 
-#[derive(Debug)]
-enum Flag {
-    POS,
-    ZRO,
-    NEG
+pub mod flag {
+    pub const POS: u8 = 0b0100;
+    pub const ZRO: u8 = 0b0010;
+    pub const NEG: u8 = 0b0001;
 }
 
 pub mod op_code {
@@ -58,7 +57,7 @@ pub struct LC3 {
     memory: [u8; UINT16_MAX],
     gp_regs: [u16; NUM_GP_REGS],
     pc: usize,
-    cond: Flag,
+    cond: u8,
     debug: bool
 }
 
@@ -68,7 +67,7 @@ impl Default for LC3 {
             memory: [0; UINT16_MAX],
             gp_regs: [0; NUM_GP_REGS],
             pc: PRGM_START_ADDR,
-            cond: Flag::ZRO,
+            cond: 0,
             debug: false
         }
     }
@@ -234,14 +233,14 @@ fn get_as_u16(upper_byte: u8, lower_byte: u8) -> u16 {
     ((upper_byte as u16) << 8) | lower_byte as u16
 }
 
-fn update_flags(register_val: u16, cond: &mut Flag) {
+fn update_flags(register_val: u16, cond: &mut u8) {
     if register_val == 0 {
-        *cond = Flag::ZRO;
+        *cond &= flag::ZRO;
     }
     else if is_negative(register_val) {
-        *cond = Flag::NEG;
+        *cond &= flag::NEG;
     }
     else {
-        *cond = Flag::POS;
+        *cond &= flag::POS;
     }
 }
