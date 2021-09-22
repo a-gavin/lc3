@@ -178,6 +178,10 @@ fn get_immed_bit(instr: u16) -> u16 {
     (instr >> 5) & 0x1
 }
 
+fn get_reg(instr: u16, shift: u16) -> u16 {
+    (instr >> shift) & 0x7
+}
+
 fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX]), io::Error> {
     // Open VM image file
     let mut program_file = File::open(&program_file)?;
