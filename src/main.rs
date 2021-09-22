@@ -47,6 +47,8 @@ pub mod op_code {
 #[derive(Debug, StructOpt)]
 #[structopt(rename_all = "kebab-case")]
 struct Cli {
+    #[structopt(short, long)]
+    debug: bool,
     #[structopt(parse(from_os_str))]
     program_file: PathBuf,
 }
@@ -56,7 +58,8 @@ pub struct LC3 {
     memory: [u8; UINT16_MAX],
     gp_regs: [u16; NUM_GP_REGS],
     pc: usize,
-    cond: Flag
+    cond: Flag,
+    debug: bool
 }
 
 impl Default for LC3 {
@@ -65,13 +68,14 @@ impl Default for LC3 {
             memory: [0; UINT16_MAX],
             gp_regs: [0; NUM_GP_REGS],
             pc: PRGM_START_ADDR,
-            cond: Flag::ZRO
+            cond: Flag::ZRO,
+            debug: false
         }
     }
 }
 
 impl LC3 {
-    pub fn new(program_file: &PathBuf) -> LC3 {
+    pub fn new(program_file: &PathBuf, debug: bool) -> LC3 {
         let (start_addr, memory) = match read_program_file(program_file) {
             Ok(n) => n,
             Err(error) => {
@@ -83,22 +87,35 @@ impl LC3 {
         LC3 {
                 pc: start_addr,
                 memory: memory,
+                debug: debug,
                 ..Default::default()
             }
     }
 
     pub fn run(mut self) {
-        println!("memory: {:?}", &self.memory[(self.pc-10)..(self.pc+100)]);
+        if self.debug {
+            println!("memory:");
+            for i in (0..30).step_by(2) {
+                println!("{:08b} {:08b}", self.memory[self.pc+i], self.memory[self.pc+i+1]);
+            }
+            println!();
+        }
 
         loop {
             // Fetch instruction and advance PC
             let instr = self.mem_read(self.pc);
             let opcode = (instr >> 12) as u8;
 
-            println!("PC: {:#04x}", self.pc);
-            println!("OPCODE: {:?}", opcode);
-            println!("COND: {:?}", self.cond);
-            println!("gp_regs: {:?}", self.gp_regs);
+            if self.debug {
+                println!("PC: {:#04x}\n\
+                          OPCODE: {:?}\n\
+                          COND: {:?}\n\
+                          gp_regs: {:?}\n",
+                         self.pc,
+                         opcode,
+                         self.cond,
+                         self.gp_regs);
+            }
 
             self.pc += 1;
             match opcode {
@@ -119,6 +136,7 @@ impl LC3 {
                 SHF  => println!(),
                 _ => return, // All others, including Opcode::RTI
             }
+            return;
         }
     }
 
@@ -139,7 +157,7 @@ impl LC3 {
     }
 
     fn mem_read(&self, reg_val: usize) -> u16 {
-        swap_bytes(self.memory[reg_val], self.memory[reg_val+1])
+        get_as_u16(self.memory[reg_val], self.memory[reg_val+1])
     }
 }
 
@@ -147,7 +165,7 @@ impl LC3 {
 /* ~~~ The fun stuff ~~~ */
 fn main() {
     let args = Cli::from_args();
-    let lc3 = LC3::new(&args.program_file);
+    let lc3 = LC3::new(&args.program_file, args.debug);
     lc3.run();
 }
 
@@ -165,19 +183,21 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
     let mut program_file = File::open(&program_file)?;
     let file_handle = program_file.by_ref();
 
-    //// Read program start location
+    // Read program start location
     let mut two_byte_chunk = Vec::with_capacity(2);
     file_handle.take(2).read_to_end(&mut two_byte_chunk)?;
 
     // Convert to little endian; if zero, use default
-    let read_start_addr = swap_bytes(two_byte_chunk[0], two_byte_chunk[1]);
+    let read_start_addr = get_as_u16(two_byte_chunk[0], two_byte_chunk[1]);
 
     let mut start_addr = PRGM_START_ADDR;
     if read_start_addr != 0 {
         start_addr = read_start_addr as usize;
     }
 
-    // Read program into memory, starting at program start location, swapping to little endian
+    // Read program into memory, starting at program start location
+    //  Assumes in correct big-endian byte order.
+    //  Code written for easy swap, if necessary
     let mut memory: [u8; UINT16_MAX] = [0; UINT16_MAX];
     let mut ix = start_addr;
     two_byte_chunk.clear();
@@ -188,9 +208,9 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
                             .read_to_end(&mut two_byte_chunk)?;
         if n == 0 { break; }
 
-        // Swap and copy into memory
-        memory[ix] = two_byte_chunk[1];
-        memory[ix+1] = two_byte_chunk[0];
+        // Copy into memory
+        memory[ix] = two_byte_chunk[0];
+        memory[ix+1] = two_byte_chunk[1];
         two_byte_chunk.clear();
 
         ix += 2;
@@ -206,8 +226,8 @@ fn sign_extend(register: u16, num_bits: u8) -> u16 {
     register
 }
 
-fn swap_bytes(op1: u8, op2: u8) -> u16 {
-    ((op1 as u16) << 8) | op2 as u16
+fn get_as_u16(upper_byte: u8, lower_byte: u8) -> u16 {
+    ((upper_byte as u16) << 8) | lower_byte as u16
 }
 
 fn update_flags(register_val: u16, cond: &mut Flag) {
