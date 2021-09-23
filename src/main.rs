@@ -57,6 +57,7 @@ pub struct LC3 {
     memory: [u8; UINT16_MAX],
     gp_regs: [u16; NUM_GP_REGS],
     pc: usize,
+    // Cond bits: XXXXXPZN, where X indicates unused
     cond: u8,
     debug: bool
 }
@@ -107,8 +108,8 @@ impl LC3 {
 
             if self.debug {
                 println!("PC: {:#04x}\n\
-                          OPCODE: {:?}\n\
-                          COND: {:?}\n\
+                          OPCODE: {:#06b}\n\
+                          COND: {:#010b}\n\
                           gp_regs: {:?}\n",
                          self.pc,
                          opcode,
@@ -116,7 +117,7 @@ impl LC3 {
                          self.gp_regs);
             }
 
-            self.pc += 1;
+            self.pc += 2;
             match opcode {
                 ADD  => self.add(instr),
                 AND  => println!(),
