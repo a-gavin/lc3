@@ -326,11 +326,18 @@ pub mod lc3 {
         use std::path::PathBuf;
         use crate::lc3::LC3;
 
+        fn get_base_path() -> PathBuf {
+            let mut test_base_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+            test_base_path.push("programs/objs");
+
+            test_base_path
+        }
+
         #[test]
         fn test_add() {
-            let mut test_add_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            test_add_path.push("programs/objs/add.obj");
-            let mut lc3 = LC3::new(&test_add_path, false);
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("add.obj");
+            let mut lc3 = LC3::new(&test_obj_path, false);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 0);
@@ -344,9 +351,9 @@ pub mod lc3 {
 
         #[test]
         fn test_and() {
-            let mut test_add_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            test_add_path.push("programs/objs/and.obj");
-            let mut lc3 = LC3::new(&test_add_path, false);
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("and.obj");
+            let mut lc3 = LC3::new(&test_obj_path, false);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 0);
@@ -361,9 +368,9 @@ pub mod lc3 {
 
         #[test]
         fn test_jsr() {
-            let mut test_add_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            test_add_path.push("programs/objs/jsr.obj");
-            let mut lc3 = LC3::new(&test_add_path, false);
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("jsr.obj");
+            let mut lc3 = LC3::new(&test_obj_path, false);
 
             lc3.fetch_and_exec();
             lc3.fetch_and_exec();
@@ -373,9 +380,9 @@ pub mod lc3 {
 
         #[test]
         fn test_not() {
-            let mut test_add_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-            test_add_path.push("programs/objs/not.obj");
-            let mut lc3 = LC3::new(&test_add_path, false);
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("not.obj");
+            let mut lc3 = LC3::new(&test_obj_path, false);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 65535);
