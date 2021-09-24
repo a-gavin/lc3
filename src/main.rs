@@ -54,7 +54,7 @@ struct Cli {
 
 // LC-3 VM
 pub struct LC3 {
-    memory: [u8; UINT16_MAX],
+    memory: [u16; UINT16_MAX],
     gp_regs: [u16; NUM_GP_REGS],
     pc: usize,
     // Cond bits: XXXXXPZN, where X indicates unused
@@ -95,8 +95,11 @@ impl LC3 {
     pub fn run(mut self) {
         if self.debug {
             println!("memory:");
-            for i in (0..30).step_by(2) {
-                println!("{:08b} {:08b}", self.memory[self.pc+i], self.memory[self.pc+i+1]);
+            for i in (0..10).step_by(1) {
+                println!("{:#04x}: {:08b} {:08b}",
+                         self.pc + i,
+                         (self.memory[self.pc+i] >> 8) & 0x00FF,
+                         self.memory[self.pc+i] & 0x00FF);
             }
             println!();
         }
@@ -107,9 +110,9 @@ impl LC3 {
             let opcode = (instr >> 12) as u8;
 
             if self.debug {
-                println!("PC: {:#04x}\n\
-                          OPCODE: {:#06b}\n\
-                          COND: {:#010b}\n\
+                println!("PC:      {:#04x}\n\
+                          OPCODE:  {:#06b}\n\
+                          COND:    {:#010b}\n\
                           gp_regs: {:?}\n",
                          self.pc,
                          opcode,
@@ -117,7 +120,7 @@ impl LC3 {
                          self.gp_regs);
             }
 
-            self.pc += 2;
+            self.pc += 1;
             match opcode {
                 ADD  => self.add(instr),
                 AND  => println!(),
@@ -132,11 +135,10 @@ impl LC3 {
                 STB  => println!(),
                 STI  => println!(),
                 STR  => println!(),
-                TRAP => println!(),
+                TRAP => return,
                 SHF  => println!(),
                 _ => return, // All others, including Opcode::RTI
             }
-            return;
         }
     }
 
@@ -157,7 +159,7 @@ impl LC3 {
     }
 
     fn mem_read(&self, reg_val: usize) -> u16 {
-        get_as_u16(self.memory[reg_val], self.memory[reg_val+1])
+        self.memory[reg_val]
     }
 }
 
@@ -182,7 +184,7 @@ fn get_reg(instr: u16, shift: u16) -> u16 {
     (instr >> shift) & 0x7
 }
 
-fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX]), io::Error> {
+fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u16; UINT16_MAX]), io::Error> {
     // Open VM image file
     let mut program_file = File::open(&program_file)?;
     let file_handle = program_file.by_ref();
@@ -201,8 +203,8 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
 
     // Read program into memory, starting at program start location
     //  Assumes in correct big-endian byte order.
-    //  Code written for easy swap, if necessary
-    let mut memory: [u8; UINT16_MAX] = [0; UINT16_MAX];
+    //  Code written for easy swap to little-endian, if necessary
+    let mut memory: [u16; UINT16_MAX] = [0; UINT16_MAX];
     let mut ix = start_addr;
     two_byte_chunk.clear();
 
@@ -213,11 +215,9 @@ fn read_program_file(program_file: &PathBuf) -> Result<(usize, [u8; UINT16_MAX])
         if n == 0 { break; }
 
         // Copy into memory
-        memory[ix] = two_byte_chunk[0];
-        memory[ix+1] = two_byte_chunk[1];
+        memory[ix] = get_as_u16(two_byte_chunk[0], two_byte_chunk[1]);
         two_byte_chunk.clear();
-
-        ix += 2;
+        ix += 1;
     }
 
     Ok((start_addr, memory))
