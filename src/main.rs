@@ -123,15 +123,15 @@ impl LC3 {
             self.pc += 1;
             match opcode {
                 ADD  => self.add(instr),
-                AND  => println!(),
+                AND  => self.and(instr),
                 BR   => println!(),
-                JMP  => println!(),
-                JSR  => println!(),
+                JMP  => self.jmp(instr),
+                JSR  => self.jsr(instr),
                 LDB  => println!(),
-                LDI  => println!(),
+                LDI  => self.ldi(instr),
                 LDR  => println!(),
-                LEA  => println!(),
-                NOT  => println!(),
+                LEA  => self.lea(instr),
+                NOT  => self.not(instr),
                 STB  => println!(),
                 STI  => println!(),
                 STR  => println!(),
@@ -143,17 +143,90 @@ impl LC3 {
     }
 
     fn add(&mut self, instr: u16) {
-        let dest_reg: u16 = (instr >> 9) & 0x7;
-        let op1: u16 = (instr >> 5) & 0x7;
+        let dest_reg = get_reg(instr, 9);
+        let op1_reg = get_reg(instr, 5);
 
         if get_immed_bit(instr) == 1 {
             let imm5 = sign_extend(instr & 0x1F, 5);
-            self.gp_regs[dest_reg as usize] = self.gp_regs[op1 as usize] + imm5;
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] + imm5;
         }
         else {
-            let op2: u16 = instr & 0x7;
-            self.gp_regs[dest_reg as usize] = self.gp_regs[op1 as usize] + self.gp_regs[op2 as usize];
+            let op2_reg: u16 = get_reg(instr, 0);
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] + self.gp_regs[op2_reg as usize];
         }
+
+        update_flags(dest_reg, &mut self.cond);
+    }
+
+    fn and(&mut self, instr: u16) {
+        let dest_reg = get_reg(instr, 9);
+        let op1_reg = get_reg(instr, 6);
+
+        if get_immed_bit(instr) == 1 {
+            let imm5 = sign_extend(instr & 0x1F, 5);
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] & imm5;
+        }
+        else {
+            let op2_reg: u16 = get_reg(instr, 0);
+            self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] & self.gp_regs[op2_reg as usize];
+        }
+
+        update_flags(dest_reg, &mut self.cond);
+    }
+
+    // TODO: Verify
+    fn jmp(&mut self, instr: u16) {
+        let offset_reg = get_reg(instr, 6) as usize;
+        self.pc = self.gp_regs[offset_reg] as usize;
+    }
+
+    // TODO: Verify
+    fn jsr(&mut self, instr: u16) {
+        let long_flag = (instr >> 1) & 1;
+
+        // Save jump address to register R7
+        self.gp_regs[7] = self.pc as u16;
+
+        if long_flag == 1 {
+            // JSR
+            let long_pc_offset = sign_extend(instr & 0x7FF, 11);
+            self.pc += long_pc_offset as usize;
+        }
+        else {
+            // JSRR
+            // TODO: Verify
+            let op1_reg = get_reg(instr, 6);
+            self.pc = self.gp_regs[op1_reg as usize] as usize;
+        }
+    }
+
+    // TODO: Verify
+    fn lea(&mut self, instr: u16) {
+        let dest_reg = get_reg(instr, 9);
+        let pc_offset = sign_extend(instr & 0x1FF, 9);
+
+        self.gp_regs[dest_reg as usize] = self.pc as u16 + pc_offset;
+
+        update_flags(dest_reg, &mut self.cond);
+    }
+
+    // TODO: Verify
+    fn ldi(&mut self, instr: u16) {
+        let dest_reg = get_reg(instr, 9);
+        let pc_offset = sign_extend(instr & 0x1FF, 9);
+
+        let addr = self.pc as usize + pc_offset as usize;
+
+        self.gp_regs[dest_reg as usize] = self.mem_read(self.mem_read(addr) as usize);
+
+        update_flags(dest_reg, &mut self.cond);
+    }
+
+    fn not(&mut self, instr: u16) {
+        let dest_reg = get_reg(instr, 9);
+        let op1_reg = get_reg(instr, 6);
+
+        self.gp_regs[dest_reg as usize] = !self.gp_regs[op1_reg as usize];
 
         update_flags(dest_reg, &mut self.cond);
     }
@@ -245,3 +318,13 @@ fn update_flags(register_val: u16, cond: &mut u8) {
         *cond &= flag::POS;
     }
 }
+
+//#[cfg(test)]
+//mod tests {
+//    #[test]
+//    fn test_add() {
+//        let mut test_add_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+//        test_add_path.push("programs/objs/add.obj");
+//        let lc3 = LC3::new(test_add_path, false);
+//    }
+//}
