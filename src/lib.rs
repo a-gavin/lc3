@@ -116,7 +116,7 @@ pub mod lc3 {
             match opcode {
                 ADD  => self.add(instr),
                 AND  => self.and(instr),
-                BR   => println!(),
+                BR   => self.br(instr),
                 JMP  => self.jmp(instr),
                 JSR  => self.jsr(instr),
                 LDB  => println!(),
@@ -169,6 +169,17 @@ pub mod lc3 {
             }
 
             update_flags(dest_reg, &mut self.cond);
+        }
+
+        // TODO: Verify
+        fn br(&mut self, instr: u16) {
+            let pc_offset = sign_extend(instr & 0x1FF, 9);
+            let cond_flag = ((instr >> 9) & 0x7) as u8;
+
+            if (cond_flag & self.cond) > 0 || cond_flag == 0x7 {
+                // Same flags set or unconditional branch
+                self.pc += pc_offset as usize;
+            }
         }
 
         // TODO: Verify
@@ -364,6 +375,18 @@ pub mod lc3 {
             lc3.fetch_and_exec();
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[2], 1);
+        }
+
+        #[test]
+        fn test_br() {
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("br.obj");
+            let mut lc3 = LC3::new(&test_obj_path, false);
+
+            lc3.fetch_and_exec();
+            lc3.fetch_and_exec();
+            assert_eq!(lc3.gp_regs[1], 0);
+            assert_eq!(lc3.gp_regs[2], 15);
         }
 
         #[test]
