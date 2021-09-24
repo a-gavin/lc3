@@ -89,42 +89,50 @@ pub mod lc3 {
             }
 
             loop {
-                // Fetch instruction and advance PC
-                let instr = self.mem_read(self.pc);
-                let opcode = (instr >> 12) as u8;
-
-                if self.debug {
-                    println!("PC:      {:#04x}\n\
-                            OPCODE:  {:#06b}\n\
-                            COND:    {:#010b}\n\
-                            gp_regs: {:?}\n",
-                            self.pc,
-                            opcode,
-                            self.cond,
-                            self.gp_regs);
-                }
-                self.pc += 1;
-
-                // Perform fetched operation
-                match opcode {
-                    ADD  => self.add(instr),
-                    AND  => self.and(instr),
-                    BR   => println!(),
-                    JMP  => self.jmp(instr),
-                    JSR  => self.jsr(instr),
-                    LDB  => println!(),
-                    LDI  => self.ldi(instr),
-                    LDR  => println!(),
-                    LEA  => self.lea(instr),
-                    NOT  => self.not(instr),
-                    STB  => println!(),
-                    STI  => println!(),
-                    STR  => println!(),
-                    TRAP => return,
-                    SHF  => println!(),
-                    _ => return, // All others, including Opcode::RTI
+                if !self.fetch_and_exec() {
+                    break;
                 }
             }
+        }
+
+        fn fetch_and_exec(&mut self) -> bool {
+            // Fetch instruction and advance PC
+            let instr = self.mem_read(self.pc);
+            let opcode = (instr >> 12) as u8;
+
+            if self.debug {
+                println!("PC:      {:#04x}\n\
+                          OPCODE:  {:#06b}\n\
+                          COND:    {:#010b}\n\
+                          gp_regs: {:?}\n",
+                          self.pc,
+                          opcode,
+                          self.cond,
+                          self.gp_regs);
+            }
+            self.pc += 1;
+
+            // Perform fetched operation
+            match opcode {
+                ADD  => self.add(instr),
+                AND  => self.and(instr),
+                BR   => println!(),
+                JMP  => self.jmp(instr),
+                JSR  => self.jsr(instr),
+                LDB  => println!(),
+                LDI  => self.ldi(instr),
+                LDR  => println!(),
+                LEA  => self.lea(instr),
+                NOT  => self.not(instr),
+                STB  => println!(),
+                STI  => println!(),
+                STR  => println!(),
+                TRAP => return false,
+                SHF  => println!(),
+                _ => return false, // All others, including Opcode::RTI
+            }
+
+            return true;
         }
 
         fn add(&mut self, instr: u16) {
