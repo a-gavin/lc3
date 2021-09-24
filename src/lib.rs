@@ -13,9 +13,9 @@ pub mod lc3 {
 
     // Cond bits: XXXXXPZN, where X indicates unused
     pub mod flag {
-        pub const POS: u8 = 0b0100;
-        pub const ZRO: u8 = 0b0010;
-        pub const NEG: u8 = 0b0001;
+        pub const POS: u8 = 0b100;
+        pub const ZRO: u8 = 0b010;
+        pub const NEG: u8 = 0b001;
     }
 
     pub mod op_code {
@@ -52,7 +52,7 @@ pub mod lc3 {
                 memory: [0; UINT16_MAX],
                 gp_regs: [0; NUM_GP_REGS],
                 pc: PRGM_START_ADDR,
-                cond: 0,
+                cond: flag::ZRO,
                 debug: false
             }
         }
@@ -150,7 +150,7 @@ pub mod lc3 {
                 self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] + self.gp_regs[op2_reg as usize];
             }
 
-            update_flags(dest_reg, &mut self.cond);
+            update_flags(self.gp_regs[dest_reg as usize], &mut self.cond);
         }
 
         fn and(&mut self, instr: u16) {
@@ -168,7 +168,7 @@ pub mod lc3 {
                 self.gp_regs[dest_reg as usize] = self.gp_regs[op1_reg as usize] & self.gp_regs[op2_reg as usize];
             }
 
-            update_flags(dest_reg, &mut self.cond);
+            update_flags(self.gp_regs[dest_reg as usize], &mut self.cond);
         }
 
         // TODO: Verify
@@ -215,7 +215,7 @@ pub mod lc3 {
 
             self.gp_regs[dest_reg as usize] = self.pc as u16 + pc_offset;
 
-            update_flags(dest_reg, &mut self.cond);
+            update_flags(self.gp_regs[dest_reg as usize], &mut self.cond);
         }
 
         // TODO: Verify
@@ -227,7 +227,7 @@ pub mod lc3 {
 
             self.gp_regs[dest_reg as usize] = self.mem_read(self.mem_read(addr) as usize);
 
-            update_flags(dest_reg, &mut self.cond);
+            update_flags(self.gp_regs[dest_reg as usize], &mut self.cond);
         }
 
         fn not(&mut self, instr: u16) {
@@ -236,7 +236,7 @@ pub mod lc3 {
 
             self.gp_regs[dest_reg as usize] = !self.gp_regs[op1_reg as usize];
 
-            update_flags(dest_reg, &mut self.cond);
+            update_flags(self.gp_regs[dest_reg as usize], &mut self.cond);
         }
 
         // Read halfword of memory (16 bits) at location "reg_val"
@@ -326,13 +326,13 @@ pub mod lc3 {
 
         pub fn update_flags(register_val: u16, cond: &mut u8) {
             if register_val == 0 {
-                *cond &= flag::ZRO;
+                *cond = flag::ZRO;
             }
             else if is_negative(register_val) {
-                *cond &= flag::NEG;
+                *cond = flag::NEG;
             }
             else {
-                *cond &= flag::POS;
+                *cond = flag::POS;
             }
         }
     }
@@ -358,12 +358,15 @@ pub mod lc3 {
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 0);
+            assert_eq!(lc3.cond, 0b010);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 5);
+            assert_eq!(lc3.cond, 0b100);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 5);
+            assert_eq!(lc3.cond, 0b100);
         }
 
         #[test]
@@ -374,13 +377,16 @@ pub mod lc3 {
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 0);
+            assert_eq!(lc3.cond, 0b010);
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 0);
+            assert_eq!(lc3.cond, 0b010);
 
             lc3.fetch_and_exec();
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[2], 1);
+            assert_eq!(lc3.cond, 0b100);
         }
 
         #[test]
@@ -393,6 +399,7 @@ pub mod lc3 {
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 0);
             assert_eq!(lc3.gp_regs[2], 15);
+            assert_eq!(lc3.cond, 0b100);
         }
 
         #[test]
@@ -405,6 +412,7 @@ pub mod lc3 {
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 0);
             assert_eq!(lc3.gp_regs[2], 15);
+            assert_eq!(lc3.cond, 0b100);
         }
 
         #[test]
@@ -415,10 +423,12 @@ pub mod lc3 {
 
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[0], 65535);
+            assert_eq!(lc3.cond, 0b001);
 
             lc3.fetch_and_exec();
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 65527);
+            assert_eq!(lc3.cond, 0b001);
         }
 
         #[test]
