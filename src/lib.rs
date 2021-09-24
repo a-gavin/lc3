@@ -284,9 +284,15 @@ pub mod lc3 {
             // Convert to little endian; if zero, use default
             let read_start_addr = get_as_u16(two_byte_chunk[0], two_byte_chunk[1]);
 
-            let mut start_addr = PRGM_START_ADDR;
-            if read_start_addr != 0 {
+            let start_addr;
+            if read_start_addr == 0 {
+                start_addr = PRGM_START_ADDR;
+            }
+            else if 0x3000 <= read_start_addr {
                 start_addr = read_start_addr as usize;
+            }
+            else {
+                panic!("Cannot load program into privileged memory!");
             }
 
             // Read program into memory, starting at program start location
@@ -413,6 +419,36 @@ pub mod lc3 {
             lc3.fetch_and_exec();
             lc3.fetch_and_exec();
             assert_eq!(lc3.gp_regs[1], 65527);
+        }
+
+        #[test]
+        fn test_orig_0x3000() {
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("add.obj");
+            let lc3 = LC3::new(&test_obj_path, false);
+
+            assert_eq!(lc3.pc, 0x3000);
+            assert_eq!(lc3.memory[lc3.pc], 0x1001);
+            assert_eq!(lc3.memory[lc3.pc+3], 0xF025);
+        }
+
+        #[test]
+        fn test_orig_0x4000() {
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("orig_0x4000.obj");
+            let lc3 = LC3::new(&test_obj_path, false);
+
+            assert_eq!(lc3.pc, 0x4000);
+            assert_eq!(lc3.memory[lc3.pc], 0x1001);
+            assert_eq!(lc3.memory[lc3.pc+3], 0xF025);
+        }
+
+        #[test]
+        #[should_panic]
+        fn test_orig_invalid() {
+            let mut test_obj_path = get_base_path();
+            test_obj_path.push("orig_invalid.obj");
+            LC3::new(&test_obj_path, false);
         }
     }
 }
